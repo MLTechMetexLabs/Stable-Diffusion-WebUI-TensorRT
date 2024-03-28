@@ -1,70 +1,40 @@
 import launch
-import sys
+import pkg_resources
 
-python = sys.executable
+def get_installed_version(package_name):
+    """Get the installed version of a package."""
+    try:
+        return pkg_resources.get_distribution(package_name).version
+    except pkg_resources.DistributionNotFound:
+        return None
 
+def install_package(package_name, version_spec=None, uninstall_first=False, extra_index_url=None, no_cache_dir=False):
+    """Central method to handle package installation with options."""
+    package_install_cmd = f"{package_name}{'==' + version_spec if version_spec else ''}"
+    options = []
+    if extra_index_url:
+        options.append(f"--extra-index-url {extra_index_url}")
+    if no_cache_dir:
+        options.append("--no-cache-dir")
+    if uninstall_first and get_installed_version(package_name):
+        launch.run(["python", "-m", "pip", "uninstall", "-y", package_name], f"Removing {package_name}")
+    options_str = " ".join(options)
+    launch.run_pip(f"install {package_install_cmd} {options_str}", package_name, live=True)
 
-def install():
-    if not launch.is_installed("importlib_metadata"):
-        launch.run_pip("install importlib_metadata", "importlib_metadata", live=True)
-    from importlib_metadata import version
+def install_dependencies():
+    """Install or upgrade required packages with specific dependencies."""
+    # Define packages and their dependencies
+    dependencies = [
+        {"name": "nvidia-cudnn-cu12", "version": "8.9.6.50", "uninstall_first": True, "no_cache_dir": True},
+        {"name": "tensorrt", "version": "9.3.0.post12.dev1", "uninstall_first": True, "extra_index_url": "https://pypi.nvidia.com", "no_cache_dir": True},
+        {"name": "polygraphy", "extra_index_url": "https://pypi.ngc.nvidia.com", "no_cache_dir": True},
+        {"name": "protobuf", "version": "3.20.3", "no_cache_dir": True},
+        {"name": "onnx-graphsurgeon", "extra_index_url": "https://pypi.ngc.nvidia.com", "no_cache_dir": True},
+        {"name": "optimum", "no_cache_dir": True}
+    ]
 
-    if launch.is_installed("tensorrt"):
-        if not version("tensorrt") == "9.3.0.post12.dev1":
-            launch.run(
-                ["python", "-m", "pip", "uninstall", "-y", "tensorrt"],
-                "removing old version of tensorrt",
-            )
+    for dep in dependencies:
+        if not get_installed_version(dep["name"]) or (dep.get("version") and get_installed_version(dep["name"]) != dep["version"]):
+            install_package(**dep)
 
-    if not launch.is_installed("tensorrt"):
-        print("TensorRT is not installed! Installing...")
-        launch.run_pip(
-            "install nvidia-cudnn-cu12==8.9.6.50 --no-cache-dir", "nvidia-cudnn-cu12"
-        )
-        launch.run_pip(
-            "install --pre --extra-index-url https://pypi.nvidia.com tensorrt==9.3.0.post12.dev1 --no-cache-dir",
-            "tensorrt",
-            live=True,
-        )
-        launch.run(
-            ["python", "-m", "pip", "uninstall", "-y", "nvidia-cudnn-cu12"],
-            "removing nvidia-cudnn-cu12",
-        )
-
-    if launch.is_installed("nvidia-cudnn-cu12"):
-        if version("nvidia-cudnn-cu12") == "8.9.6.50":
-            launch.run(
-                ["python", "-m", "pip", "uninstall", "-y", "nvidia-cudnn-cu12"],
-                "removing nvidia-cudnn-cu12",
-            )
-
-    # Polygraphy
-    if not launch.is_installed("polygraphy"):
-        print("Polygraphy is not installed! Installing...")
-        launch.run_pip(
-            "install polygraphy --extra-index-url https://pypi.ngc.nvidia.com",
-            "polygraphy",
-            live=True,
-        )
-
-    # ONNX GS
-    if not launch.is_installed("onnx_graphsurgeon"):
-        print("GS is not installed! Installing...")
-        launch.run_pip("install protobuf==3.20.2", "protobuf", live=True)
-        launch.run_pip(
-            "install onnx-graphsurgeon --extra-index-url https://pypi.ngc.nvidia.com",
-            "onnx-graphsurgeon",
-            live=True,
-        )
-
-    # OPTIMUM
-    if not launch.is_installed("optimum"):
-        print("Optimum is not installed! Installing...")
-        launch.run_pip(
-            "install optimum",
-            "optimum",
-            live=True,
-        )
-
-
-install()
+install_dependencies()
