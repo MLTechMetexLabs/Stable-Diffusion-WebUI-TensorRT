@@ -216,7 +216,7 @@ class ProfilePrests:
             ),
         }
         self.default = ProfileSettings(
-            1, 1, 4, 512, 512, 768, 512, 512, 768, 75, 75, 150
+            1, 1, 4, 256, 512, 1600, 256, 512, 1600, 75, 150, 600
         )
         self.default_xl = ProfileSettings(
             1, 1, 1, 1024, 1024, 1024, 1024, 1024, 1024, 75, 75, 75
